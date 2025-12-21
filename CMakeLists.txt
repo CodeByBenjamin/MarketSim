@@ -15,3 +15,6 @@ FetchContent_MakeAvailable(SFML)
 add_executable(main src/main.cpp "src/datatypes.h" "src/lob.h" "src/lob.cpp" )
 target_compile_features(main PRIVATE cxx_std_17)
 target_link_libraries(main PRIVATE SFML::Graphics)
+
+file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/fonts" 
+     DESTINATION "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
