@@ -40,3 +40,8 @@ struct LOBState
 	double bestAskPrice;
 	long bestAskVolume;
 };
+
+struct DepthPoint {
+	float price;
+	long totalVolume;
+};

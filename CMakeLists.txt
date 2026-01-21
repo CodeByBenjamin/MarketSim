@@ -12,7 +12,7 @@ FetchContent_Declare(SFML
     SYSTEM)
 FetchContent_MakeAvailable(SFML)
 
-add_executable(main src/main.cpp "src/datatypes.h" "src/lob.h" "src/lob.cpp" )
+add_executable(main src/main.cpp "src/datatypes.h" "src/LimitOrderBook.h" "src/LimitOrderBook.cpp"  "src/DepthChart.h" "src/DepthChart.cpp"  "src/UIHelpers.h" "src/UIHelpers.cpp")
 target_compile_features(main PRIVATE cxx_std_17)
 target_link_libraries(main PRIVATE SFML::Graphics)
 

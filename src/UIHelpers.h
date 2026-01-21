@@ -1,0 +1,36 @@
+#pragma once
+
+#include <string>
+#include <SFML/Graphics/Font.hpp>
+#include <SFML/Graphics/Color.hpp>
+#include <SFML/Graphics/RenderTarget.hpp>
+
+namespace Theme {
+    inline const sf::Color Background = sf::Color(23, 27, 36);   // Background color
+    inline const sf::Color Surface = sf::Color(43, 43, 64);    // Panel backgrounds
+    inline const sf::Color Border = sf::Color(47, 51, 61);    // Dividers
+
+    inline const sf::Color TextMain = sf::Color(242, 242, 242); // Primary numbers
+    inline const sf::Color TextDim = sf::Color(139, 148, 158); // Timestamps/Labels
+
+    inline const sf::Color Bid = sf::Color(72, 168, 100);  // Your Green
+    inline const sf::Color Ask = sf::Color(188, 72, 72);   // Your Red
+    inline const sf::Color BidBG = sf::Color(72, 168, 100, 80);  // Your Green
+    inline const sf::Color AskBG = sf::Color(188, 72, 72, 80);   // Your Red
+    inline const sf::Color Accent = sf::Color(210, 153, 34);  // "Special" info
+}
+
+enum TextSnap {
+    LEFT,
+    CENTER,
+    RIGHT
+};
+
+class UIHelper
+{
+public:
+    static std::string formatPrice(double price);
+
+    static void drawLabel(sf::RenderTarget& target, const sf::Font& font, const std::string& label, int fontSize, float x, float y, TextSnap snap, float offset, sf::Color color);
+    static void drawColoredRect(sf::RenderTarget& target, float x, float y, float width, float height, TextSnap snap, float offset, sf::Color color);
+};
