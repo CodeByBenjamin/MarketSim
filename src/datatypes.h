@@ -16,7 +16,7 @@ enum Side
 struct Order
 {
 	long id;
-	long agentId;
+	long traderId;
 	double price;
 	long volume;
 	Side side;

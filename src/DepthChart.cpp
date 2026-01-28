@@ -19,11 +19,17 @@ void DepthChart::update(const LimitOrderBook& LOB, float chartWidth, float chart
     long totalVolume = 0;
     std::vector<DepthPoint> depthPoints = LOB.depthChartPoints(0.5f, &totalVolume);
 
-    if (depthPoints.empty()) return;
+    if (depthPoints.empty()) {
+        bidTriangles.clear();
+        askTriangles.clear();
+        return;
+    }
+
+    int offset = -100;
 
     float binWidth = chartWidth / static_cast<float>(depthPoints.size() - 1);
     float bottomOfChart = (float)winSize.y;
-    float startX = winSize.x - chartWidth;
+    float startX = winSize.x - chartWidth + offset;
 
     size_t splitIndex = 0;
     for (size_t i = 0; i < depthPoints.size(); i++) {

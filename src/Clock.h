@@ -3,9 +3,9 @@
 class Clock
 {
 private:
-	using Time = double;
+	using Time = long long;
 
-	Time curTime = 0.0;
+	Time curTime = 0LL;
 public:
 	Time now() const;
 

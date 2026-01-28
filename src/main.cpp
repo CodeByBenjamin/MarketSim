@@ -15,31 +15,8 @@
 #include "LOBPanel.h"
 #include "DepthChart.h"
 #include "Trader.h"
-
-static void runLOBTests(LimitOrderBook& LOB)
-{
-    std::vector<Order> testOrders = {
-        {0, 101, 10.00, 150, Side::BUY, 0}, 
-        {0, 102, 9.95,  80,  Side::BUY, 0},
-        {0, 103, 9.90,  200, Side::BUY, 0}, 
-        {0, 104, 9.85,  40,  Side::BUY, 0},
-        {0, 105, 10.00, 50,  Side::BUY, 0}, 
-
-        {0, 201, 10.10, 100, Side::SELL, 0},
-        {0, 202, 10.15, 60,  Side::SELL, 0},
-        {0, 203, 10.20, 300, Side::SELL, 0},
-        {0, 204, 10.25, 20,  Side::SELL, 0},
-        {0, 205, 10.10, 50,  Side::SELL, 0},
-
-        {0, 301, 10.10, 30,  Side::BUY, 0}
-    };
-
-    for (const auto& order : testOrders)
-    {
-        Order submittedOrder = order;
-        LOB.processOrder(submittedOrder);
-    }
-}
+#include "TrendStrategy.h"
+#include "RandomStrategy.h"
 
 int main()
 {
@@ -64,7 +41,6 @@ int main()
 
     LimitOrderBook LOB;
     DepthChart depthChart;
-    runLOBTests(LOB);
 
     float lobWidth = static_cast<float>(window.getSize().x * 0.25f);
     float chartWidth = static_cast<float>(window.getSize().x * 0.25f);
@@ -72,7 +48,24 @@ int main()
 
     bool lobDirty = true;
 
-    Trader traders[10];
+
+    TrendStrategy* trendStrat = new TrendStrategy();
+    std::vector<Trader> trendTraders;
+    trendTraders.reserve(10);
+    for (int i = 0; i < 5; i++) {
+        trendTraders.emplace_back(trendStrat, i, 2000.0, 100L);
+    }
+    for (auto& t : trendTraders) LOB.registerTrader(&t);
+
+    RandomStrategy* randomStrat = new RandomStrategy();
+    std::vector<Trader> randomTraders;
+    randomTraders.reserve(20);
+    for (int i = 0; i < 10; i++) {
+        randomTraders.emplace_back(randomStrat, i + 5, 2000.0, 100L);
+    }
+    for (auto& t : randomTraders) LOB.registerTrader(&t);
+
+    LOB.registerTrader(new Trader{randomStrat, 999, 100000.0, 20000L});
 
     while (window.isOpen())
     {
@@ -99,13 +92,24 @@ int main()
                     std::chrono::duration<double>(realDt)
                 );
             elapsed = now - lastTime;
-
+        
             LOB.update();
+
+            if (clock.now() == 30) {
+                Order whalePanic = { 999, 999, 10.0, 2000, Side::SELL, clock.now() };
+                LOB.processOrder(whalePanic, clock);
+            }
+        
             for (size_t i = 0; i < 10; i++)
             {
-                traders[i].update(LOB, clock.now());
+                randomTraders[i].update(LOB, clock);
             }
-
+            
+            for (size_t i = 0; i < 5; i++)
+            {
+                trendTraders[i].update(LOB, clock);
+            }
+        
             lobDirty = true;
         }
 

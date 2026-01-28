@@ -14,6 +14,8 @@ void LOBPanel::draw(sf::RenderWindow& window, const sf::Font& font, const LimitO
 	UIHelper::drawLabel(window, font, "BIDS ($)", 28, lobWidth / 4.f, 20.f, TextSnap::Center, 0.f, Theme::Bid);
 	UIHelper::drawLabel(window, font, "ASKS ($)", 28, 3.f * lobWidth / 4.f, 20.f, TextSnap::Center, 0.f, Theme::Ask);
 
+	//Draw LOBPanel
+
 	const auto& bids = LOB.getBids();
 	const auto& asks = LOB.getAsks();
 
@@ -47,8 +49,8 @@ void LOBPanel::draw(sf::RenderWindow& window, const sf::Font& font, const LimitO
 		UIHelper::drawLabel(window, font, rightSide, 22, centerX, currentY / 2.f, TextSnap::Left, -7.f, Theme::Accent);
 
 		int count = 0;
-		int maxCount = 30; //Price levels to show
-		long maxVol = std::max(LOB.getHighestVolume(BUY, 30), LOB.getHighestVolume(SELL, 30));
+		int maxCount = 25; //Price levels to show
+		long maxVol = std::max(LOB.getHighestVolume(BUY, maxCount), LOB.getHighestVolume(SELL, maxCount));
 
 		if (maxVol == 0)
 			return;

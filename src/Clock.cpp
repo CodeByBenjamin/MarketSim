@@ -1,6 +1,6 @@
 #include "Clock.h"
 
-using Time = double;
+using Time = long long;
 
 Time Clock::now() const
 {

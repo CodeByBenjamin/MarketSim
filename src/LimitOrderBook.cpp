@@ -10,6 +10,11 @@
 #include "datatypes.h"
 #include "UIHelpers.h"
 #include "LimitOrderBook.h"
+#include "Clock.h"
+
+static double roundToTick(double price, double tickSize = 0.01) {
+	return std::round(price / tickSize) * tickSize;
+}
 
 const std::map<double, std::list<Order>, std::greater<double>>& LimitOrderBook::getBids() const
 {
@@ -19,6 +24,14 @@ const std::map<double, std::list<Order>, std::greater<double>>& LimitOrderBook::
 const std::map<double, std::list<Order>>& LimitOrderBook::getAsks() const
 {
 	return asks;
+}
+
+const Trader* LimitOrderBook::getTrader(long id) const {
+	auto it = traders.find(id);
+	if (it != traders.end()) {
+		return it->second;
+	}
+	return nullptr;
 }
 
 long LimitOrderBook::getHighestVolume(Side side, size_t priceLevels) const
@@ -53,9 +66,22 @@ long LimitOrderBook::getHighestVolume(Side side, size_t priceLevels) const
 	return maxVol;
 }
 
-void LimitOrderBook::update()
-{
-	double midPrice = (bids.begin()->first + asks.begin()->first) / 2.0;
+void LimitOrderBook::update() {
+	double midPrice;
+
+	if (bids.empty() && asks.empty()) {
+		midPrice = midPriceRecords.empty() ? 20.0 : midPriceRecords.back();
+	}
+	else if (bids.empty()) {
+		midPrice = asks.begin()->first;
+	}
+	else if (asks.empty()) {
+		midPrice = bids.begin()->first;
+	}
+	else {
+		midPrice = (bids.begin()->first + asks.begin()->first) / 2.0;
+	}
+
 	midPriceRecords.push_back(midPrice);
 }
 
@@ -69,44 +95,50 @@ const std::vector<double>& LimitOrderBook::getMidPriceHistory() const
 	return midPriceRecords;
 }
 
-void LimitOrderBook::processOrder(const Order& incomingOrder)
+long LimitOrderBook::processOrder(const Order& incomingOrder, Clock& clock)
 {
 	Order order = incomingOrder;
 	order.id = nextOrderId++;
 
+	order.price = roundToTick(order.price);
+
 	if (order.side == Side::BUY) {
 		if (!asks.empty() && order.price >= asks.begin()->first)
-			executeMatch(order);
+			executeMatch(order, clock);
 		else
 			addLimitOrder(order);
 	}
 	else
 	{
 		if (!bids.empty() && order.price <= bids.begin()->first)
-			executeMatch(order);
+			executeMatch(order, clock);
 		else
 			addLimitOrder(order);
 	}
+
+	return order.id;
 }
 
-void LimitOrderBook::executeMatch(Order& incomingOrder) 
+void LimitOrderBook::executeMatch(Order& incomingOrder, Clock& clock)
 {
 	if (incomingOrder.side == Side::BUY) 
 	{
-		auto priceLevelIt = asks.begin();
-
-		while (incomingOrder.volume > 0 && priceLevelIt != asks.end() &&
-			priceLevelIt->first <= incomingOrder.price)
+		while (incomingOrder.volume > 0 && !asks.empty())
 		{
-			std::list<Order>& priceList = priceLevelIt->second;
+			auto priceLevelIt = asks.begin();
 
+			if (priceLevelIt->first > incomingOrder.price) break;
+
+			std::list<Order>& priceList = priceLevelIt->second;
 			while (incomingOrder.volume > 0 && !priceList.empty())
 			{
 				Order& restingOrder = priceList.front();
 				long tradeVolume = std::min(incomingOrder.volume, restingOrder.volume);
 
-				recordTrade(incomingOrder, restingOrder, tradeVolume, priceLevelIt->first);
+				recordTrade(incomingOrder, restingOrder, tradeVolume, priceLevelIt->first, clock);
 				lastTradePrice = priceLevelIt->first;
+
+
 
 				restingOrder.volume -= tradeVolume;
 				incomingOrder.volume -= tradeVolume;
@@ -117,32 +149,26 @@ void LimitOrderBook::executeMatch(Order& incomingOrder)
 				}
 			}
 
-			if (priceList.empty())
-				priceLevelIt = asks.erase(priceLevelIt);
-			else
-				break;
-		}
-
-		if (incomingOrder.volume > 0)
-		{
-			addLimitOrder(incomingOrder);
+			if (priceList.empty()) {
+				asks.erase(priceLevelIt);
+			}
 		}
 	}
 	else
 	{
-		auto priceLevelIt = bids.begin();
-
-		while (incomingOrder.volume > 0 && priceLevelIt != bids.end() &&
-			priceLevelIt->first >= incomingOrder.price)
+		while (incomingOrder.volume > 0 && !bids.empty())
 		{
-			std::list<Order>& priceList = priceLevelIt->second;
+			auto priceLevelIt = bids.begin();
 
+			if (priceLevelIt->first < incomingOrder.price) break;
+
+			std::list<Order>& priceList = priceLevelIt->second;
 			while (incomingOrder.volume > 0 && !priceList.empty())
 			{
 				Order& restingOrder = priceList.front();
 				long tradeVolume = std::min(incomingOrder.volume, restingOrder.volume);
 
-				recordTrade(restingOrder, incomingOrder, tradeVolume, priceLevelIt->first);
+				recordTrade(restingOrder, incomingOrder, tradeVolume, priceLevelIt->first, clock);
 				lastTradePrice = priceLevelIt->first;
 
 				restingOrder.volume -= tradeVolume;
@@ -154,16 +180,14 @@ void LimitOrderBook::executeMatch(Order& incomingOrder)
 				}
 			}
 
-			if (priceList.empty())
-				priceLevelIt = bids.erase(priceLevelIt);
-			else
-				break;
+			if (priceList.empty()) {
+				bids.erase(priceLevelIt);
+			}
 		}
+	}
 
-		if (incomingOrder.volume > 0)
-		{
-			addLimitOrder(incomingOrder);
-		}
+	if (incomingOrder.volume > 0) {
+		addLimitOrder(incomingOrder);
 	}
 }
 
@@ -203,6 +227,10 @@ bool LimitOrderBook::cancelOrder(long orderId)
 	return true;
 }
 
+void LimitOrderBook::registerTrader(Trader* trader) {
+	traders[trader->getId()] = trader;
+}
+
 void LimitOrderBook::addLimitOrder(Order incomingOrder)
 {
 	if (incomingOrder.side == Side::BUY) {
@@ -236,29 +264,40 @@ void LimitOrderBook::addLimitOrder(Order incomingOrder)
 	}
 }
 
-void LimitOrderBook::recordTrade(const Order& bidOrder, const Order& askOrder, long volume, double price)
+void LimitOrderBook::recordTrade(const Order& bidOrder, const Order& askOrder, long volume, double price, Clock& clock)
 {
 	TradeRecord tradeRecord = {};
-
-	tradeRecord.buyerOrderId = bidOrder.id;
-	tradeRecord.sellerOrderId = askOrder.id;
-
-	//auto now = std::chrono::system_clock::now();
-	//tradeRecord.timeStamp = std::chrono::duration_cast<std::chrono::milliseconds>(
-	//	now.time_since_epoch()
-	//).count();
-
+	tradeRecord.buyerOrderId = bidOrder.traderId;
+	tradeRecord.sellerOrderId = askOrder.traderId;
+	tradeRecord.timeStamp = clock.now();
 	tradeRecord.tradeId = nextTradeId++;
 	tradeRecord.price = price;
 	tradeRecord.volume = volume;
-
 	tradeRecords.push_back(tradeRecord);
+
+	Trader* buyer = traders[bidOrder.traderId];
+	Trader* seller = traders[askOrder.traderId];
+
+	double cashExchanged = price * volume;
+
+	if (buyer) {
+		buyer->changeFunds(-cashExchanged);
+		buyer->changeStocks(volume);
+	}
+
+	if (seller) {
+		seller->changeFunds(cashExchanged);
+		seller->changeStocks(-volume);
+	}
 }
 
 const std::vector<DepthPoint> LimitOrderBook::depthChartPoints(float binSize, long* totalVolume) const
 {
 	std::vector<DepthPoint> depthPoints;
-	if (bids.empty() || asks.empty()) { *totalVolume = 0; return depthPoints; }
+	if (bids.empty() || asks.empty()) {
+		*totalVolume = 0;
+		return {};
+	}
 
 	depthPoints.reserve(bids.size() + asks.size() + 1);
 

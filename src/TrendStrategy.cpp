@@ -4,11 +4,12 @@
 #include "TrendStrategy.h"
 #include "Trader.h"
 #include "LimitOrderBook.h"
+#include "Clock.h"
 
-void TrendStrategy::decide(Trader& trader, LimitOrderBook& LOB, double time)
+void TrendStrategy::decide(Trader& trader, LimitOrderBook& LOB, Clock& clock)
 {
 	static std::mt19937 rng(std::random_device{}());
-	size_t depth = 5; //How many last trades to look at
+	size_t depth = 100; //How many last trades to look at
 
 	auto const& midPriceHistory = LOB.getMidPriceHistory();
 
@@ -32,82 +33,87 @@ void TrendStrategy::decide(Trader& trader, LimitOrderBook& LOB, double time)
 	double currentPrice = midPriceHistory.back();
 	double diff = currentPrice - avr;
 
-	if (diff > 0)
+	double threshold = avr * 0.001;
+
+	bool buyingTheDip = false;
+	if (trader.getFunds() >= 6000) {
+		buyingTheDip = true;
+	}
+
+	bool cashOut = false;
+	if (trader.getStocks() >= 300) {
+		cashOut = true;
+	}
+
+	if (cashOut) {
+		auto const& bids = LOB.getBids();
+		if (bids.empty())  return;
+
+		double executionPrice = bids.begin()->first * 0.99;
+		long amountToDump = trader.getStocks() / 10;
+		Order sellOrder = { 0, trader.getId(), executionPrice, amountToDump, Side::SELL, clock.now() };
+		LOB.processOrder(sellOrder, clock);
+	}
+
+	if (diff > threshold && !cashOut)
 	{
 		auto const& asks = LOB.getAsks();
 		if (asks.empty()) return;
 
 		auto bestAskIt = asks.begin();
-		if (bestAskIt == asks.end()) return;
 
-		double executionPrice = bestAskIt->first;
-		long bestAskVolume = 0;
-
-		for (const auto& orderAtPrice : bestAskIt->second)
-		{
-			bestAskVolume += orderAtPrice.volume;
-		}
+		double executionPrice = bestAskIt->first * 1.01;
 
 		double funds = trader.getFunds();
-		long canBuy = std::min(static_cast<long>(std::floor(funds / executionPrice)), bestAskVolume);
+		long canBuy = static_cast<long>(std::floor(funds / executionPrice));
 
 		if (canBuy <= 0) return;
 
 		double perc = diff / avr;
 
-		long bias = std::clamp(
-			static_cast<long>(std::round(perc * 500)),
-			-10L,
-			10L
-		);
+		long minVol = static_cast<long>(canBuy * perc);
+		long maxVol = static_cast<long>(canBuy * 0.2);
 
-		std::uniform_int_distribution<long> dist(0, canBuy);
+		if (minVol >= maxVol) minVol = maxVol / 2;
+		std::uniform_int_distribution<long> dist(std::max(1L, minVol), std::max(1L, maxVol));
+
 		long willBuy = std::clamp(
-			dist(rng) + (bias * (canBuy / 20)), 
+			dist(rng), 
 			1L,
 			canBuy
 		);
 
-		Order order = { 0, 101, executionPrice, willBuy, Side::BUY, time };
-		LOB.processOrder(order);
+		Order order = { 0, trader.getId(), executionPrice, willBuy, Side::BUY, clock.now()};
+		LOB.processOrder(order, clock);
 	}
-	else if (diff < 0)
+	else if (diff < -threshold && !buyingTheDip)
 	{
 		auto const& bids = LOB.getBids();
 		if (bids.empty()) return;
 
 		auto bestBidIt = bids.begin();
-		if (bestBidIt == bids.end()) return;
 
-		double executionPrice = bestBidIt->first;
-		long bestBidVolume = 0;
+		double executionPrice = bestBidIt->first * 0.99;
 
-		for (const auto& orderAtPrice : bestBidIt->second)
-		{
-			bestBidVolume += orderAtPrice.volume;
-		}
-
-		long stocks = trader.getStocks();
-		long canSell = std::min(stocks, bestBidVolume);
+		long canSell = trader.getStocks();
 
 		if (canSell <= 0) return;
 
-		double perc = -diff / avr;
+		double perc = std::abs(diff) / avr;
 
-		long bias = std::clamp(
-			static_cast<long>(std::round(perc * 500)),
-			-10L,
-			10L
-		);
+		long minVol = static_cast<long>(canSell * perc);
+		long maxVol = static_cast<long>(canSell * 0.2);
 
-		std::uniform_int_distribution<long> dist(0, canSell);
+		if (minVol >= maxVol) minVol = maxVol / 2;
+		std::uniform_int_distribution<long> dist(std::max(1L, minVol), std::max(1L, maxVol));
+
 		long willSell = std::clamp(
-			dist(rng) + (bias * (canSell / 20)),
+			dist(rng),
 			1L,
 			canSell
 		);
 
-		Order order = { 0, 101, executionPrice, willSell, Side::SELL, time };
-		LOB.processOrder(order);
+		Order order = { 0, trader.getId(), executionPrice, willSell, Side::SELL, clock.now() };
+		LOB.processOrder(order, clock);
 	}
 }

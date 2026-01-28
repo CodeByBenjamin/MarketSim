@@ -1,21 +1,16 @@
 #include "Trader.h"
 #include "TrendStrategy.h"
 
-Trader::Trader()
-	: strategy(new TrendStrategy),
-	funds(1000),
-	stocks(100)
-{}
-
-Trader::Trader(TradeStrategy* strategy, double funds, long stocks)
+Trader::Trader(TradeStrategy* strategy, long id, double funds, long stocks)
 	: strategy(strategy),
+	id(id),
 	funds(funds),
 	stocks(stocks)
 {}
 
-Trader::~Trader()
+long Trader::getId() const
 {
-	delete strategy;
+	return id;
 }
 
 double Trader::getFunds() const
@@ -28,17 +23,32 @@ double Trader::getStocks() const
 	return stocks;
 }
 
-void Trader::setFunds(double funds)
+const std::vector<long>& Trader::getActiveOrderIds() const
 {
-	this->funds = funds;
+	return activeOrders;
 }
 
-void Trader::setStocks(long stocks)
+void Trader::changeFunds(double funds)
 {
-	this->stocks = stocks;
+	this->funds += funds;
 }
 
-void Trader::update(LimitOrderBook& LOB, double time)
+void Trader::changeStocks(long stocks)
 {
-	strategy->decide(*this, LOB, time);
+	this->stocks += stocks;
+}
+
+void Trader::update(LimitOrderBook& LOB, Clock& clock)
+{
+	strategy->decide(*this, LOB, clock);
+}
+
+void Trader::addActiveOrderId(long id)
+{
+	activeOrders.push_back(id);
+}
+
+void Trader::clearActiveOrderIds()
+{
+	activeOrders.clear();
 }
