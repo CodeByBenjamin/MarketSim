@@ -13,18 +13,14 @@ namespace Theme {
     inline const sf::Color TextMain = sf::Color(242, 242, 242); // Primary numbers
     inline const sf::Color TextDim = sf::Color(139, 148, 158); // Timestamps/Labels
 
-    inline const sf::Color Bid = sf::Color(72, 168, 100);  // Your Green
-    inline const sf::Color Ask = sf::Color(188, 72, 72);   // Your Red
-    inline const sf::Color BidBG = sf::Color(72, 168, 100, 80);  // Your Green
-    inline const sf::Color AskBG = sf::Color(188, 72, 72, 80);   // Your Red
+    inline const sf::Color Bid = sf::Color(72, 168, 100);  // Green
+    inline const sf::Color Ask = sf::Color(188, 72, 72);   // Red
+    inline const sf::Color BidBG = sf::Color(72, 168, 100, 80);  // BG Green
+    inline const sf::Color AskBG = sf::Color(188, 72, 72, 80);   // Bg Red
     inline const sf::Color Accent = sf::Color(210, 153, 34);  // "Special" info
 }
 
-enum TextSnap {
-    LEFT,
-    CENTER,
-    RIGHT
-};
+enum class TextSnap { Left, Center, Right };
 
 class UIHelper
 {

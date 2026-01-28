@@ -33,14 +33,6 @@ struct TradeRecord
 	long long timeStamp;
 };
 
-struct LOBState
-{
-	double bestBidPrice;
-	long bestBidVolume;
-	double bestAskPrice;
-	long bestAskVolume;
-};
-
 struct DepthPoint {
 	float price;
 	long totalVolume;

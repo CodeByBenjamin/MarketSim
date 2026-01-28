@@ -24,24 +24,26 @@ private:
 
 	double lastTradePrice = 0.0;
 	std::vector<TradeRecord> tradeRecords;
+	std::vector<double> midPriceRecords;
 
 	long nextTradeId = 1;
 public:
 
 	const std::map<double, std::list<Order>, std::greater<double>>& getBids() const;
 	const std::map<double, std::list<Order>>& getAsks() const;
-	LOBState getLOBState() const;
-	const std::vector<TradeRecord>& getTradeHistory() const;
-	double getLastTradePrice() const;
-	size_t getBookDepth(Side side) const;
+	long getHighestVolume(Side side, size_t priceLevels) const;
 
-	void processOrder(Order incomingOrder);
-	bool cancelOrder(long orderId);
-	void executeMatch(Order incomingOrder);
+	void update();
+
+	const std::vector<TradeRecord>& getTradeHistory() const;
+	const std::vector<double>& getMidPriceHistory() const;
+
+	void processOrder(const Order& incomingOrder);
+	void executeMatch(Order& incomingOrder);
 	void addLimitOrder(Order incomingOrder);
+	bool cancelOrder(long orderId);
 
 	void recordTrade(const Order& restingOrder, const Order& incomingOrder, long volume, double price);
 
-	void draw(sf::RenderWindow& window, const sf::Font& font, float lobWidth);
 	const std::vector<DepthPoint> depthChartPoints(float binSize, long* totalVolume) const;
 };

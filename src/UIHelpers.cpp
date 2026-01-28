@@ -25,24 +25,23 @@ void UIHelper::drawLabel(sf::RenderTarget& target, const sf::Font& font, const s
     text.setCharacterSize(fontSize);
     text.setFillColor(color);
 
-    std::string rowStr = label;
-    text.setString(rowStr);
+    text.setString(label);
 
     float fullOffset = offset;
 
     switch (snap)
     {
-    case LEFT:
+    case TextSnap::Left:
         break;
-    case CENTER:
+    case TextSnap::Center:
         fullOffset -= text.getLocalBounds().size.x / 2.f;
         break;
-    case RIGHT:
+    case TextSnap::Right:
         fullOffset -= text.getLocalBounds().size.x;
         break;
     }
 
-    text.setPosition({ x + fullOffset, y });
+    text.setPosition({ std::round(x + fullOffset), std::round(y) });
 
     target.draw(text);
 }
@@ -58,17 +57,17 @@ void UIHelper::drawColoredRect(sf::RenderTarget& target, float x, float y, float
 
     switch (snap)
     {
-    case LEFT:
+    case TextSnap::Left:
         break;
-    case CENTER:
+    case TextSnap::Center:
         fullOffset -= width / 2.f;
         break;
-    case RIGHT:
+    case TextSnap::Right:
         fullOffset -= width;
         break;
     }
 
-    rect.setPosition({ x + fullOffset, y });
+    rect.setPosition({ std::round(x + fullOffset), std::round(y)});
 
     target.draw(rect);
 }

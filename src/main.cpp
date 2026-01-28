@@ -8,12 +8,15 @@
 #include <SFML/Window/WindowEnums.hpp>
 #include <SFML/Window/Event.hpp>
 
+#include "Clock.h"
 #include "datatypes.h"
 #include "UIHelpers.h"
 #include "LimitOrderBook.h"
+#include "LOBPanel.h"
 #include "DepthChart.h"
+#include "Trader.h"
 
-static void runLOBTests(LimitOrderBook& lob)
+static void runLOBTests(LimitOrderBook& LOB)
 {
     std::vector<Order> testOrders = {
         {0, 101, 10.00, 150, Side::BUY, 0}, 
@@ -34,7 +37,7 @@ static void runLOBTests(LimitOrderBook& lob)
     for (const auto& order : testOrders)
     {
         Order submittedOrder = order;
-        lob.processOrder(submittedOrder);
+        LOB.processOrder(submittedOrder);
     }
 }
 
@@ -49,9 +52,27 @@ int main()
         std::cout << "Error loading font!" << std::endl;
     }
 
+    Clock clock;
+
+    double dt = 1.0; //Ticks per update
+
+    double updatesPerSecond = 10.0;
+    double realDt = 1.0 / updatesPerSecond;
+    auto lastTime = std::chrono::high_resolution_clock::now();
+
+    LOBPanel lobPanel;
+
     LimitOrderBook LOB;
     DepthChart depthChart;
     runLOBTests(LOB);
+
+    float lobWidth = static_cast<float>(window.getSize().x * 0.25f);
+    float chartWidth = static_cast<float>(window.getSize().x * 0.25f);
+    float chartHeight = static_cast<float>(window.getSize().y * 0.25f);
+
+    bool lobDirty = true;
+
+    Trader traders[10];
 
     while (window.isOpen())
     {
@@ -61,17 +82,42 @@ int main()
             {
                 window.close();
             }
+
+            if (const auto* keyPressed = event->getIf<sf::Event::KeyPressed>()) {
+                if (keyPressed->code == sf::Keyboard::Key::Escape) window.close();
+            }
+        }
+
+        auto now = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> elapsed = now - lastTime;
+
+        while (elapsed.count() >= realDt)
+        {
+            clock.advance(dt);
+            lastTime += std::chrono::duration_cast<
+                std::chrono::high_resolution_clock::duration>(
+                    std::chrono::duration<double>(realDt)
+                );
+            elapsed = now - lastTime;
+
+            LOB.update();
+            for (size_t i = 0; i < 10; i++)
+            {
+                traders[i].update(LOB, clock.now());
+            }
+
+            lobDirty = true;
         }
 
         window.clear(Theme::Background);
 
-        float lobWidth = window.getSize().x * 0.25f;
-        float chartWidth = window.getSize().x * 0.25f;
-        float chartHeight = window.getSize().y * 0.25f;
+        if (lobDirty)
+        {
+            depthChart.update(LOB, chartWidth, chartHeight, window.getSize());
+            lobDirty = false;
+        }
 
-        depthChart.update(LOB, chartWidth, chartHeight, window.getSize());
-
-        LOB.draw(window, font, lobWidth);
+        lobPanel.draw(window, font, LOB, lobWidth);
         window.draw(depthChart);
         window.display();
     }

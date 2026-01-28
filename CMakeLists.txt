@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.28)
 project(CMakeSFMLProject LANGUAGES CXX)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include(FetchContent)
 FetchContent_Declare(SFML
@@ -12,8 +14,11 @@ FetchContent_Declare(SFML
     SYSTEM)
 FetchContent_MakeAvailable(SFML)
 
-add_executable(main src/main.cpp "src/datatypes.h" "src/LimitOrderBook.h" "src/LimitOrderBook.cpp"  "src/DepthChart.h" "src/DepthChart.cpp"  "src/UIHelpers.h" "src/UIHelpers.cpp")
-target_compile_features(main PRIVATE cxx_std_17)
+file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "src/*.cpp")
+file(GLOB_RECURSE HEADERS CONFIGURE_DEPENDS "src/*.h")
+
+add_executable(main ${SOURCES} ${HEADERS} "src/TradeStrategy.h" "src/TrendStrategy.h" "src/Trader.cpp" "src/TrendStrategy.cpp" "src/Clock.h" "src/Clock.cpp")
+
 target_link_libraries(main PRIVATE SFML::Graphics)
 
 file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/fonts" 

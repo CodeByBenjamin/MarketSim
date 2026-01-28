@@ -17,5 +17,5 @@ private:
 public:
     DepthChart();
 
-    void update(const LimitOrderBook& LOB, float width, float height, sf::Vector2u winSize);
+    void update(const LimitOrderBook& LOB, float chartWidth, float chartHeight, sf::Vector2u winSize);
 };
